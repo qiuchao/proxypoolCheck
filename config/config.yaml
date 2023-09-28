@@ -1,19 +1,17 @@
-# proxypool remote server url. Blank for http://127.0.0.1:8080
-server_url: 
-  - https://example.proxypoolserver.com
-  # - https://example.proxypoolserver.com/clash/proxies?type=vmess
+# 远程服务器链接，可以使用筛选参数。支持多种来源
+server_url:
+  - http://192.168.254.128:80/clash/proxies
 
-# For your local server
-request: http   # http / https
-domain:         # default: 127.0.0.1
-port:           # default: 80
+request: http                   # 要显示到网页的协议 http / https
+domain: 192.168.254.128         # 要显示到网页的域名 default: 127.0.0.1
+port: 83                        # 要显示到网页上的端口 default: 80
 
-cron_interval: 15       # default: 15  minutes
-show_remote_speed: true # default false
+cron_interval: 30               # 工作间隔 default: 15  minutes
+show_remote_speed: false        # 显示远程速度 default false
 
-healthcheck_timeout:    # default 5
-healthcheck_connection: # default 100
+healthcheck_timeout: 4          # 单个节点健康检测时间限制，单位为秒。超过此时间限制的节点为无效节点 default 5
+healthcheck_connection: 20      # 节点健康检测并发连接数。丢失大量可用节点时可大幅减少此项数值。 default 100
 
-speedtest:              # default false
-speed_connection:       # default 5
-speed_timeout:          # default 10
+speedtest: true                 # 是否开启测速，默认关闭。开启测速会消耗大量流量 default false
+speed_timeout: 5                # 单个节点测速时间限制，单位为秒。超过此时间限制的节点会测速失败 default 10
+speed_connection: 4             # 测速并发连接数 default 5

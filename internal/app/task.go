@@ -49,6 +49,8 @@ func InitApp() error{
 
 	if config.Config.SpeedTest == true {
 		proxies = healthcheck.SpeedTestAll(proxies)
+		cache.UsableProxiesCount = len(proxies)
+		fmt.Println("After speed test, usable proxy count: ", len(proxies))
 	}
 
 	cache.SetString("clashproxies", provider.Clash{
