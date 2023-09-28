@@ -44,7 +44,7 @@ chmod +775 proxypoolcheck
 
 确保安装golang，然后下载源码
 ```sh
-$ go get -u -v github.com/ssrlive/proxypoolCheck
+$ go get github.com/ssrlive/proxypoolCheck
 ```
 
 运行
