@@ -29,4 +29,5 @@ require (
 	gopkg.in/caio/go-tdigest.v2 v2.3.0 // indirect
 	gopkg.in/go-playground/validator.v8 v8.18.2 // indirect
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

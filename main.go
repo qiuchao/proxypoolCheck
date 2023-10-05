@@ -26,6 +26,7 @@ func main()  {
 		configFilePath = "config.yaml"
 	}
 	err := config.Parse(configFilePath)
+	log.Printf("[Andy] Main config file: %s", configFilePath)
 	if err != nil {
 		log.Fatal(err, "\n\"Config file err. Exit\"")
 		return

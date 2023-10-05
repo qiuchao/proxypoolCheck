@@ -14,6 +14,7 @@ var location, _ = time.LoadLocation("PRC")
 
 // Get all usable proxies from proxypool server and set app vars
 func InitApp() error{
+	log.Printf("[Andy] InitApp")
 	// Get proxies from server
 	proxies, err := getAllProxies()
 	if err != nil {
@@ -21,6 +22,7 @@ func InitApp() error{
 		cache.LastCrawlTime = fmt.Sprint(time.Now().In(location).Format("2006-01-02 15:04:05"), err)
 		return err
 	}
+	log.Println("[Andy] Origin proxies:", len(proxies))
 	proxies = proxies.Derive().Deduplication()
 	cache.AllProxiesCount = len(proxies)
 
@@ -30,9 +32,9 @@ func InitApp() error{
 	cache.VmessProxiesCount = proxies.TypeLen("vmess")
 	cache.TrojanProxiesCount = proxies.TypeLen("trojan")
 	cache.LastCrawlTime = fmt.Sprint(time.Now().In(location).Format("2006-01-02 15:04:05"))
-	log.Println("Number of proxies:", cache.AllProxiesCount)
+	log.Println("[Andy] unique proxies:", cache.AllProxiesCount)
 
-	log.Println("Now proceeding health check...")
+	log.Println("[Andy] Now proceeding health check...")
 
 	// healthcheck settings
 	healthcheck.DelayConn = config.Config.HealthCheckConnection
@@ -41,7 +43,7 @@ func InitApp() error{
 	healthcheck.SpeedTimeout = time.Duration(config.Config.SpeedTimeout) * time.Second
 
 	proxies = healthcheck.CleanBadProxiesWithGrpool(proxies)
-	log.Println("Usable proxy count: ", len(proxies))
+	log.Println("[Andy] Usable proxy count: ", len(proxies))
 
 	// Save to cache
 	cache.SetProxies("proxies", proxies)

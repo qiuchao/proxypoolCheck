@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"time"
+	"io/ioutil"
+	"regexp"
 
 	"github.com/ssrlive/proxypool/pkg/provider"
 	"github.com/ssrlive/proxypoolCheck/config"
@@ -65,6 +67,45 @@ func setupRouter() {
 			"request": config.Config.Request,
 			"port":    config.Config.Port,
 		})
+	})
+
+	router.GET("/clash/config2", func(c *gin.Context) {
+		proxies := appcache.GetProxies("proxies")
+		clash := provider.Clash{
+			Base: provider.Base{
+				Proxies: &proxies,
+			},
+		}
+		proxyList := clash.Provide()
+
+		nameList := []string{}
+		pjson := strings.Split(string(proxyList), "\n")
+		for _, p := range pjson {
+			re := regexp.MustCompile(`"name":"([^"]+)"`)
+			match := re.FindStringSubmatch(p)
+			if len(match) > 1 {
+				name := match[1]
+				nameList = append(nameList, " '" + name + "'")
+			}
+		}
+		proxyNames := strings.Join(nameList, ",")
+
+		content, err := ioutil.ReadFile("config/clash-config2.yaml")
+		if err != nil {
+			log.Println("无法读取文件:", err)
+		}
+
+		re := regexp.MustCompile(`"(\w+)":`)
+		proxyList = re.ReplaceAllString(proxyList, "$1: ")
+		re = regexp.MustCompile(`(\{|\}|,)(\S)`)
+		proxyList = re.ReplaceAllString(proxyList, "$1 $2")
+		re = regexp.MustCompile("- {")
+		proxyList = re.ReplaceAllString(proxyList, "    - {")
+
+		body := strings.Replace(string(content), "{{ proxies }}", proxyList, -1)
+		body = strings.Replace(body, "{{ proxyNames }}", proxyNames, -1)
+
+		c.String(200, body)
 	})
 
 	router.GET("/clash/config", func(c *gin.Context) {

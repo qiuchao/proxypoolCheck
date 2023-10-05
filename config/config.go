@@ -14,6 +14,7 @@ var configFilePath = "config.yaml"
 // ConfigOptions is a struct that represents config files
 type ConfigOptions struct {
 	ServerUrl          []string `json:"server_url" yaml:"server_url"`
+	ClashConfigUrl     []string `json:"clash_config_url" yaml:"clash_config_url"`
 	Domain             string   `json:"domain" yaml:"domain"`
 	Port               string   `json:"port" yaml:"port"`
 	Request            string   `json:"request" yaml:"request"`

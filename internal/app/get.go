@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/ssrlive/proxypool/pkg/proxy"
 	"github.com/ssrlive/proxypoolCheck/config"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -16,17 +17,33 @@ import (
 func getAllProxies() (proxy.ProxyList, error) {
 	var proxylist proxy.ProxyList
 	var errs []error // collect errors
+	log.Printf("[Andy] Get all proxies")
 
-	for _, value := range config.Config.ServerUrl {
-		url := formatURL(value)
-		pjson, err := getProxies(url)
+	for _, url := range config.Config.ClashConfigUrl {
+		proxyList, err := getClashConfigProxies(url)
+
 		if err != nil {
 			log.Printf("Error when fetch %s: %s\n", url, err.Error())
 			errs = append(errs, err)
 			continue
 		}
-		log.Printf("Get %s line count: %d\n", url, len(pjson))
+		for _, value := range proxyList {
+			proxylist = append(proxylist, value)
+		}
+		log.Printf("[Andy] Get proxies from clash config, url: %s\tproxies: %d", url, len(proxyList))
+	}
 
+	for _, value := range config.Config.ServerUrl {
+		url := formatURL(value)
+		pjson, err := getProxies(url)
+
+		if err != nil {
+			log.Printf("Error when fetch %s: %s\n", url, err.Error())
+			errs = append(errs, err)
+			continue
+		}
+
+		var count = 0
 		for i, p := range pjson {
 			if i == 0 || len(p) < 2 {
 				continue
@@ -44,8 +61,10 @@ func getAllProxies() (proxy.ProxyList, error) {
 					pp.SetName(name)
 				}
 				proxylist = append(proxylist, pp)
+				count = count + 1
 			}
 		}
+		log.Printf("[Andy] Get proxies from proxypool, url: %s\tproxies: %d", url, count)
 	}
 
 	if proxylist == nil {
@@ -69,11 +88,15 @@ func formatURL(value string) string {
 			url = url[:len(url)-1]
 		}
 	}
-	urls := strings.Split(url, "/")
-	if urls[len(urls)-2] != "clash" {
-		url = url + "/clash/proxies"
-	}
+	// urls := strings.Split(url, "/")
+	// if urls[len(urls)-2] != "clash" {
+	// 	url = url + "/clash/proxies"
+	// }
 	return url
+}
+
+type ClashConfig struct {
+	Proxy []map[string]interface{} `yaml:"proxies"`
 }
 
 // get proxy strings from url
@@ -96,10 +119,72 @@ func getProxies(url string) ([]string, error) {
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	proxyJson := strings.Split(string(body), "\n")
+
 	if len(proxyJson) < 2 {
 		return nil, errors.New("no proxy on " + url)
 	}
 	return proxyJson, nil
+}
+
+func getClashConfigProxies(path string) (proxy.ProxyList, error) {
+	fileData, err := config.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var cf ClashConfig
+	err = yaml.Unmarshal(fileData, &cf)
+	if err != nil {
+		return nil, err
+	} 
+
+	proxyList := make(proxy.ProxyList, 0)
+	for _, pjson := range cf.Proxy {
+		p, err := parseProxyFromClashProxy(pjson)
+		if err == nil && p != nil {
+			proxyList = append(proxyList, p)
+		}
+	}
+
+	return proxyList, nil
+}
+
+func parseProxyFromClashProxy(p map[string]interface{}) (_p proxy.Proxy, err error) {
+	pjson, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	switch p["type"].(string) {
+	case "ss":
+		var _p proxy.Shadowsocks
+		err := json.Unmarshal(pjson, &_p)
+		if err != nil {
+			return nil, err
+		}
+		return &_p, nil
+	case "ssr":
+		var _p proxy.ShadowsocksR
+		err := json.Unmarshal(pjson, &_p)
+		if err != nil {
+			return nil, err
+		}
+		return &_p, nil
+	case "vmess":
+		var _p proxy.Vmess
+		err := json.Unmarshal(pjson, &_p)
+		if err != nil {
+			return nil, err
+		}
+		return &_p, nil
+	case "trojan":
+		var _p proxy.Trojan
+		err := json.Unmarshal(pjson, &_p)
+		if err != nil {
+			return nil, err
+		}
+		return &_p, nil
+	}
+	return nil, errors.New("clash json parse failed")
 }
 
 // Convert json string(clash format) to proxy
