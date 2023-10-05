@@ -3,9 +3,6 @@ server_url:
   - http://192.168.254.128:80/clash/proxies
 
 clash_config_url:
-  - https://st-sub.fly.dev/v2b/ant/api/v1/client/subscribe?token=89aa9f3fe67af1a6d52f1bdd245764d5&flag=clash
-  # - C:\Users\Windows10\.config\clash\profiles\1694413969720.yml
-  - C:\Users\Windows10\.config\clash\profiles\test.yml
 
 request: http                   # 要显示到网页的协议 http / https
 domain: 127.0.0.1               # 要显示到网页的域名 default: 127.0.0.1
