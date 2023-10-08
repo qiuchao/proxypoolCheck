@@ -19,12 +19,13 @@ type ConfigOptions struct {
 	Port               string   `json:"port" yaml:"port"`
 	Request            string   `json:"request" yaml:"request"`
 	CronInterval       uint64   `json:"cron_interval" yaml:"cron_interval"`
-	ShowRemoteSpeed    bool     `json:"show_remote_speed" yaml:"show_remote_speed"`
 	HealthCheckTimeout int      `json:"healthcheck_timeout" yaml:"healthcheck_timeout"`
 	HealthCheckConnection int 	`json:"healthcheck_connection" yaml:"healthcheck_connection"`
 	SpeedTest          bool     `json:"speedtest" yaml:"speedtest"`
 	SpeedConnection    int      `json:"speed_connection" yaml:"speed_connection"`
 	SpeedTimeout       int      `json:"speed_timeout" yaml:"speed_timeout"`
+	FilterTimes        int      `json:"filter_times" yaml:"filter_times"`
+	FilterMinProxy     int      `json:"filter_min_proxy" yaml:"filter_min_proxy"`
 }
 
 var Config ConfigOptions
@@ -72,6 +73,12 @@ func Parse(path string) error {
 	}
 	if Config.SpeedTimeout == 0 {
 		Config.SpeedTimeout = 10
+	}
+	if Config.FilterTimes == 0 {
+		Config.FilterTimes = 1
+	}
+	if Config.FilterMinProxy == 0 {
+		Config.FilterMinProxy = 5
 	}
 	return nil
 }

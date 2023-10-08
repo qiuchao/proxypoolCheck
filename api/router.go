@@ -23,6 +23,77 @@ const version = "v0.7.3"
 
 var router *gin.Engine
 
+func GetAllProxiesText() (string, string) {
+	text := appcache.GetString("clashproxies")
+	if text == "" {
+		proxies := appcache.GetProxies("proxies")
+		clash := provider.Clash{
+			Base: provider.Base{
+				Proxies: &proxies,
+			},
+		}
+		text = clash.Provide()
+		appcache.SetString("clashproxies", text)
+	}
+
+	nameList := []string{}
+	sp := strings.Split(string(text), "\n")
+	for _, p := range sp {
+		re := regexp.MustCompile(`"name":"([^"]+)"`)
+		match := re.FindStringSubmatch(p)
+		if len(match) > 1 {
+			name := " '" + match[1] + "'"
+			nameList = append(nameList, name)
+		}
+	}
+	proxyNames := strings.Join(nameList, ",")
+
+	re := regexp.MustCompile(`"(\w+)":`)
+	text = re.ReplaceAllString(text, "$1: ")
+	re = regexp.MustCompile(`(\{|\}|,)(\S)`)
+	text = re.ReplaceAllString(text, "$1 $2")
+	re = regexp.MustCompile("- {")
+	text = re.ReplaceAllString(text, "    - {")
+
+	return text, proxyNames
+}
+
+func GetCountryProxies(proxyCountry string, proxyNotCountry string, allProxiesNames string, countryName string, countryList string, conntryProxies string) (string, string) {
+	proxies := appcache.GetProxies("proxies")
+	clash := provider.Clash{
+		provider.Base{
+			Proxies:    &proxies,
+			Types:      "",
+			Country:    proxyCountry,
+			NotCountry: proxyNotCountry,
+			Speed:      "",
+			Filter:     "",
+		},
+	}
+	text := clash.Provide()
+
+	nameList := []string{}
+	sp := strings.Split(string(text), "\n")
+	for _, p := range sp {
+		re := regexp.MustCompile(`"name":"([^"]+)"`)
+		match := re.FindStringSubmatch(p)
+		if len(match) > 1 {
+			name := " '" + match[1] + "'"
+			match, _ := regexp.MatchString(name, allProxiesNames)
+			if allProxiesNames == "" || match {
+				nameList = append(nameList, name)
+			}
+		}
+	}
+	if len(nameList) > 0 {
+		conntryProxyTemp := "    type: url-test\n    url: 'http://www.gstatic.com/generate_204'\n    interval: 3600"
+		countryList += "      - " + countryName + "\n"
+		conntryProxies += "  - name: " + countryName + "\n" + conntryProxyTemp + "\n    proxies: [" + strings.Join(nameList, ",") + "]\n"
+	}
+
+	return countryList, conntryProxies
+}
+
 func setupRouter() {
 	gin.SetMode(gin.ReleaseMode)
 	router = gin.New() // 没有任何中间件的路由
@@ -69,41 +140,47 @@ func setupRouter() {
 		})
 	})
 
-	router.GET("/clash/config2", func(c *gin.Context) {
-		proxies := appcache.GetProxies("proxies")
-		clash := provider.Clash{
-			Base: provider.Base{
-				Proxies: &proxies,
-			},
-		}
-		proxyList := clash.Provide()
-
-		nameList := []string{}
-		pjson := strings.Split(string(proxyList), "\n")
-		for _, p := range pjson {
-			re := regexp.MustCompile(`"name":"([^"]+)"`)
-			match := re.FindStringSubmatch(p)
-			if len(match) > 1 {
-				name := match[1]
-				nameList = append(nameList, " '" + name + "'")
-			}
-		}
-		proxyNames := strings.Join(nameList, ",")
-
-		content, err := ioutil.ReadFile("config/clash-config2.yaml")
+	router.GET("/clash/config1", func(c *gin.Context) {
+		content, err := ioutil.ReadFile("template/clash-config1.yaml")
 		if err != nil {
 			log.Println("无法读取文件:", err)
 		}
 
-		re := regexp.MustCompile(`"(\w+)":`)
-		proxyList = re.ReplaceAllString(proxyList, "$1: ")
-		re = regexp.MustCompile(`(\{|\}|,)(\S)`)
-		proxyList = re.ReplaceAllString(proxyList, "$1 $2")
-		re = regexp.MustCompile("- {")
-		proxyList = re.ReplaceAllString(proxyList, "    - {")
+		proxyList, proxyNames := GetAllProxiesText()
+		countryList := ""
+		conntryProxies := ""
+		countryList, conntryProxies = GetCountryProxies("AU", "", proxyNames, "🇦🇺 澳大利亚", countryList, conntryProxies)
+		countryList, conntryProxies = GetCountryProxies("CN,HK,TW", "", proxyNames, "🇨🇳 中国", countryList, conntryProxies)
+		countryList, conntryProxies = GetCountryProxies("US", "", proxyNames, "🇺🇸 美国", countryList, conntryProxies)
+		countryList, conntryProxies = GetCountryProxies("CA", "", proxyNames, "🇨🇦 加拿大", countryList, conntryProxies)
+		countryList, conntryProxies = GetCountryProxies("JP", "", proxyNames, "🇯🇵 日本", countryList, conntryProxies)
+		countryList, conntryProxies = GetCountryProxies("SG", "", proxyNames, "🇸🇬 新加坡", countryList, conntryProxies)
+		countryList, conntryProxies = GetCountryProxies("RU", "", proxyNames, "🇷🇺 俄罗斯", countryList, conntryProxies)
+		countryList, conntryProxies = GetCountryProxies("CH", "", proxyNames, "🇨🇭 瑞士", countryList, conntryProxies)
+		countryList, conntryProxies = GetCountryProxies("DE", "", proxyNames, "🇩🇪 德国", countryList, conntryProxies)
+		countryList, conntryProxies = GetCountryProxies("FR", "", proxyNames, "🇫🇷 法国", countryList, conntryProxies)
+		countryList, conntryProxies = GetCountryProxies("GB", "", proxyNames, "🇬🇧 英国", countryList, conntryProxies)
+		countryList, conntryProxies = GetCountryProxies("NL", "", proxyNames, "🇳🇱 荷兰", countryList, conntryProxies)
+		countryList, conntryProxies = GetCountryProxies("", "CN,HK,TW,US,CA,JP,SG,AU,CH,DE,GB,NL,FR,RU", proxyNames, "其他国家", countryList, conntryProxies)
 
 		body := strings.Replace(string(content), "{{ proxies }}", proxyList, -1)
-		body = strings.Replace(body, "{{ proxyNames }}", proxyNames, -1)
+		body = strings.Replace(body, "{{ ProxyNames }}", proxyNames, -1)
+		body = strings.Replace(body, "{{ CountryList }}", countryList, -1)
+		body = strings.Replace(body, "{{ ConntryProxies }}", conntryProxies, -1)
+
+		c.String(200, body)
+	})
+
+	router.GET("/clash/config2", func(c *gin.Context) {
+		content, err := ioutil.ReadFile("template/clash-config2.yaml")
+		if err != nil {
+			log.Println("无法读取文件:", err)
+		}
+
+		proxyList, proxyNames := GetAllProxiesText()
+
+		body := strings.Replace(string(content), "{{ Proxies }}", proxyList, -1)
+		body = strings.Replace(body, "{{ ProxyNames }}", proxyNames, -1)
 
 		c.String(200, body)
 	})

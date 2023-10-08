@@ -24,17 +24,7 @@ func InitApp() error{
 	}
 	log.Println("[Andy] Origin proxies:", len(proxies))
 	proxies = proxies.Derive().Deduplication()
-	cache.AllProxiesCount = len(proxies)
-
-	// set cache variables
-	cache.SSProxiesCount = proxies.TypeLen("ss")
-	cache.SSRProxiesCount = proxies.TypeLen("ssr")
-	cache.VmessProxiesCount = proxies.TypeLen("vmess")
-	cache.TrojanProxiesCount = proxies.TypeLen("trojan")
-	cache.LastCrawlTime = fmt.Sprint(time.Now().In(location).Format("2006-01-02 15:04:05"))
-	log.Println("[Andy] unique proxies:", cache.AllProxiesCount)
-
-	log.Println("[Andy] Now proceeding health check...")
+	log.Println("[Andy] unique proxies:", len(proxies))
 
 	// healthcheck settings
 	healthcheck.DelayConn = config.Config.HealthCheckConnection
@@ -42,18 +32,31 @@ func InitApp() error{
 	healthcheck.SpeedConn = config.Config.SpeedConnection
 	healthcheck.SpeedTimeout = time.Duration(config.Config.SpeedTimeout) * time.Second
 
-	proxies = healthcheck.CleanBadProxiesWithGrpool(proxies)
-	log.Println("[Andy] Usable proxy count: ", len(proxies))
+	cache.AllProxiesCount = len(proxies)
+	for i := 0; i < config.Config.FilterTimes; i++ {
+		log.Printf("[Andy] Start filter proxies, count: %d, filter times: %d", len(proxies), i + 1)
+		if len(proxies) <= config.Config.FilterMinProxy {
+			break
+		}
 
-	// Save to cache
-	cache.SetProxies("proxies", proxies)
-	cache.UsableProxiesCount = len(proxies)
+		// set cache variables
+		cache.SSProxiesCount = proxies.TypeLen("ss")
+		cache.SSRProxiesCount = proxies.TypeLen("ssr")
+		cache.VmessProxiesCount = proxies.TypeLen("vmess")
+		cache.TrojanProxiesCount = proxies.TypeLen("trojan")
 
-	if config.Config.SpeedTest == true {
-		proxies = healthcheck.SpeedTestAll(proxies)
+		proxies = healthcheck.CleanBadProxiesWithGrpool(proxies)
+		if config.Config.SpeedTest == true {
+			proxies = healthcheck.SpeedTestAll(proxies)
+			cache.UsableProxiesCount = len(proxies)
+			log.Println("After speed test, usable proxy count: ", len(proxies))
+		}
+		log.Println("[Andy] Usable proxy count: ", len(proxies))
+
+		cache.SetProxies("proxies", proxies)
 		cache.UsableProxiesCount = len(proxies)
-		fmt.Println("After speed test, usable proxy count: ", len(proxies))
 	}
+	cache.LastCrawlTime = fmt.Sprint(time.Now().In(location).Format("2006-01-02 15:04:05"))
 
 	cache.SetString("clashproxies", provider.Clash{
 		provider.Base{

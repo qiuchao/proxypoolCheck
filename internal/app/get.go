@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"strconv"
 )
 
 func getAllProxies() (proxy.ProxyList, error) {
@@ -56,10 +57,8 @@ func getAllProxies() (proxy.ProxyList, error) {
 					errs = append(errs, errors.New("no proxy on "+url))
 					continue
 				}
-				if config.Config.ShowRemoteSpeed == true {
-					name := strings.Replace(pp.BaseInfo().Name, " |", "_", 1)
-					pp.SetName(name)
-				}
+				// name := strings.Replace(pp.BaseInfo().Name, " |", "_", 1)
+				// pp.SetName(name)
 				proxylist = append(proxylist, pp)
 				count = count + 1
 			}
@@ -76,6 +75,22 @@ func getAllProxies() (proxy.ProxyList, error) {
 			return nil, errors.New(errInfo)
 		}
 		return nil, errors.New("no proxy")
+	}
+
+	countMap := make(map[string]int)
+	for _, p := range proxylist {
+		name := strings.Replace(p.BaseInfo().Name, " |", "_", 1)
+		c := countMap[name]
+		countMap[name]++
+		if c > 0 {
+			if name == "" {
+				name = "unknown"
+			}
+			newName := name + strconv.Itoa(c + 1)
+			log.Printf("[Andy] Change proxy name form %s to %s", name, newName)
+			name = newName
+		}
+		p.SetName(name)
 	}
 	return proxylist, nil
 }
