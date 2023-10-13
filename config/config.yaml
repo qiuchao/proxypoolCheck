@@ -21,3 +21,8 @@ healthcheck_connection: 20      # 节点健康检测并发连接数。丢失大�
 speedtest: false                 # 是否开启测速，默认关闭。开启测速会消耗大量流量 default false
 speed_timeout: 5                # 单个节点测速时间限制，单位为秒。超过此时间限制的节点会测速失败 default 10
 speed_connection: 4             # 测速并发连接数 default 5
+speed_download_size: 1024           # 测速下载文件大小 default 104857600
+speed_sort: 1                   # 测速结果排序（0-节点名 1-带宽 2-延时） default 0
+speed_server:                   # 测速地址 default https://speed.cloudflare.com/__down?bytes=%d
+speed_min_bandwidth:            # 测速过滤最低带宽(B/s) default 1024
+speed_max_ttfb:                 # 测速过滤最大延时(ms) default 4096

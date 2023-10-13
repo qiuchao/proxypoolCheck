@@ -24,8 +24,11 @@ type ConfigOptions struct {
 	SpeedTest          bool     `json:"speedtest" yaml:"speedtest"`
 	SpeedConnection    int      `json:"speed_connection" yaml:"speed_connection"`
 	SpeedTimeout       int      `json:"speed_timeout" yaml:"speed_timeout"`
-	FilterTimes        int      `json:"filter_times" yaml:"filter_times"`
-	FilterMinProxy     int      `json:"filter_min_proxy" yaml:"filter_min_proxy"`
+	SpeedDownloadSize  int      `json:"speed_download_size" yaml:"speed_download_size"`
+	SpeedSort          int      `json:"speed_sort" yaml:"speed_sort"`
+	SpeedServer        string   `json:"speed_server" yaml:"speed_server"`
+	SpeedMinBandwidth  float64  `json:"speed_min_bandwidth" yaml:"speed_min_bandwidth"`
+	SpeedMaxTtfb       float64  `json:"speed_max_ttfb" yaml:"speed_max_ttfb"`
 }
 
 var Config ConfigOptions
@@ -57,7 +60,7 @@ func Parse(path string) error {
 		Config.Port = "80"
 	}
 	if Config.CronInterval == 0{
-		Config.CronInterval = 15
+		Config.CronInterval = 60
 	}
 	if Config.Request == ""{
 		Config.Request = "http"
@@ -74,11 +77,20 @@ func Parse(path string) error {
 	if Config.SpeedTimeout == 0 {
 		Config.SpeedTimeout = 10
 	}
-	if Config.FilterTimes == 0 {
-		Config.FilterTimes = 1
+	if Config.SpeedDownloadSize == 0 {
+		Config.SpeedDownloadSize = 104857600
 	}
-	if Config.FilterMinProxy == 0 {
-		Config.FilterMinProxy = 5
+	if Config.SpeedSort == 0 {
+		Config.SpeedSort = 0
+	}
+	if Config.SpeedServer == "" {
+		Config.SpeedServer = "https://speed.cloudflare.com/__down?bytes=%d"
+	}
+	if Config.SpeedMinBandwidth == 0 {
+		Config.SpeedMinBandwidth = 1024
+	}
+	if Config.SpeedMaxTtfb == 0 {
+		Config.SpeedMaxTtfb = 4096
 	}
 	return nil
 }

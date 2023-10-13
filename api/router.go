@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 	"io/ioutil"
-	"regexp"
 
 	"github.com/ssrlive/proxypool/pkg/provider"
 	"github.com/ssrlive/proxypoolCheck/config"
@@ -17,81 +16,69 @@ import (
 	"github.com/gin-contrib/cache"
 	"github.com/gin-contrib/cache/persistence"
 	"github.com/gin-gonic/gin"
+	"github.com/ssrlive/proxypool/pkg/tool"
+	"github.com/ssrlive/proxypool/pkg/proxy"
 )
 
 const version = "v0.7.3"
 
 var router *gin.Engine
 
-func GetAllProxiesText() (string, string) {
-	text := appcache.GetString("clashproxies")
-	if text == "" {
-		proxies := appcache.GetProxies("proxies")
-		clash := provider.Clash{
-			Base: provider.Base{
-				Proxies: &proxies,
-			},
-		}
-		text = clash.Provide()
-		appcache.SetString("clashproxies", text)
-	}
-
-	nameList := []string{}
-	sp := strings.Split(string(text), "\n")
-	for _, p := range sp {
-		re := regexp.MustCompile(`"name":"([^"]+)"`)
-		match := re.FindStringSubmatch(p)
-		if len(match) > 1 {
-			name := " '" + match[1] + "'"
-			nameList = append(nameList, name)
-		}
-	}
-	proxyNames := strings.Join(nameList, ",")
-
-	re := regexp.MustCompile(`"(\w+)":`)
-	text = re.ReplaceAllString(text, "$1: ")
-	re = regexp.MustCompile(`(\{|\}|,)(\S)`)
-	text = re.ReplaceAllString(text, "$1 $2")
-	re = regexp.MustCompile("- {")
-	text = re.ReplaceAllString(text, "    - {")
-
-	return text, proxyNames
+var ssrObfsList = []string{
+	"plain",
+	"http_simple",
+	"http_post",
+	"random_head",
+	"tls1.2_ticket_auth",
+	"tls1.2_ticket_fastauth",
 }
 
-func GetCountryProxies(proxyCountry string, proxyNotCountry string, allProxiesNames string, countryName string, countryList string, conntryProxies string) (string, string) {
-	proxies := appcache.GetProxies("proxies")
-	clash := provider.Clash{
-		provider.Base{
-			Proxies:    &proxies,
-			Types:      "",
-			Country:    proxyCountry,
-			NotCountry: proxyNotCountry,
-			Speed:      "",
-			Filter:     "",
-		},
-	}
-	text := clash.Provide()
+var ssrProtocolList = []string{
+	"origin",
+	"verify_deflate",
+	"verify_sha1",
+	"auth_sha1",
+	"auth_sha1_v2",
+	"auth_sha1_v4",
+	"auth_aes128_md5",
+	"auth_aes128_sha1",
+	"auth_chain_a",
+	"auth_chain_b",
+}
 
-	nameList := []string{}
-	sp := strings.Split(string(text), "\n")
-	for _, p := range sp {
-		re := regexp.MustCompile(`"name":"([^"]+)"`)
-		match := re.FindStringSubmatch(p)
-		if len(match) > 1 {
-			name := " '" + match[1] + "'"
-			match, _ := regexp.MatchString(name, allProxiesNames)
-			if allProxiesNames == "" || match {
-				nameList = append(nameList, name)
-			}
+var vmessCipherList = []string{
+	"auto",
+	"aes-128-gcm",
+	"chacha20-poly1305",
+	"none",
+}
+
+// 检查单个节点的加密方式、协议类型与混淆是否是Clash所支持的
+func checkClashSupport(p proxy.Proxy) bool {
+	switch p.TypeName() {
+	case "ssr":
+		ssr := p.(*proxy.ShadowsocksR)
+		if tool.CheckInList(proxy.SSRCipherList, ssr.Cipher) &&
+			tool.CheckInList(ssrProtocolList, ssr.Protocol) &&
+			tool.CheckInList(ssrObfsList, ssr.Obfs) {
+			return true
 		}
+	case "vmess":
+		vmess := p.(*proxy.Vmess)
+		if tool.CheckInList(vmessCipherList, vmess.Cipher) {
+			return true
+		}
+	case "ss":
+		ss := p.(*proxy.Shadowsocks)
+		if tool.CheckInList(proxy.SSCipherList, ss.Cipher) {
+			return true
+		}
+	case "trojan":
+		return true
+	default:
+		return false
 	}
-	if len(nameList) > 0 {
-		conntryProxyTemp := "    type: url-test\n    url: 'http://www.gstatic.com/generate_204'\n    interval: 3600"
-		countryList += "      - " + countryName + "\n"
-		conntryProxies += "  - name: " + countryName + "\n" + conntryProxyTemp + "\n    proxies: [" + strings.Join(nameList, ",") + "]\n"
-	}
-
-	return countryList, conntryProxies
+	return false
 }
 
 func setupRouter() {
@@ -141,30 +128,37 @@ func setupRouter() {
 	})
 
 	router.GET("/clash/config1", func(c *gin.Context) {
-		content, err := ioutil.ReadFile("template/clash-config1.yaml")
+		content, err := ioutil.ReadFile("resource/template/clash-config-country.yaml")
 		if err != nil {
 			log.Println("无法读取文件:", err)
 		}
 
-		proxyList, proxyNames := GetAllProxiesText()
+		nameList := []string{}
+		var resultBuilder strings.Builder
+		resultBuilder.WriteString("proxies:\n")
+		countMap := make(map[string][]string)
+		allProxies := appcache.GetProxies("proxies")
+		for _, p := range allProxies {			
+			if checkClashSupport(p) {
+				country := p.BaseInfo().Country
+				countMap[country] = append(countMap[country], p.BaseInfo().Name)
+				nameList = append(nameList, p.BaseInfo().Name)
+				resultBuilder.WriteString("    " + p.ToClash() + "\n")
+			}
+		}
 		countryList := ""
 		conntryProxies := ""
-		countryList, conntryProxies = GetCountryProxies("AU", "", proxyNames, "🇦🇺 澳大利亚", countryList, conntryProxies)
-		countryList, conntryProxies = GetCountryProxies("CN,HK,TW", "", proxyNames, "🇨🇳 中国", countryList, conntryProxies)
-		countryList, conntryProxies = GetCountryProxies("US", "", proxyNames, "🇺🇸 美国", countryList, conntryProxies)
-		countryList, conntryProxies = GetCountryProxies("CA", "", proxyNames, "🇨🇦 加拿大", countryList, conntryProxies)
-		countryList, conntryProxies = GetCountryProxies("JP", "", proxyNames, "🇯🇵 日本", countryList, conntryProxies)
-		countryList, conntryProxies = GetCountryProxies("SG", "", proxyNames, "🇸🇬 新加坡", countryList, conntryProxies)
-		countryList, conntryProxies = GetCountryProxies("RU", "", proxyNames, "🇷🇺 俄罗斯", countryList, conntryProxies)
-		countryList, conntryProxies = GetCountryProxies("CH", "", proxyNames, "🇨🇭 瑞士", countryList, conntryProxies)
-		countryList, conntryProxies = GetCountryProxies("DE", "", proxyNames, "🇩🇪 德国", countryList, conntryProxies)
-		countryList, conntryProxies = GetCountryProxies("FR", "", proxyNames, "🇫🇷 法国", countryList, conntryProxies)
-		countryList, conntryProxies = GetCountryProxies("GB", "", proxyNames, "🇬🇧 英国", countryList, conntryProxies)
-		countryList, conntryProxies = GetCountryProxies("NL", "", proxyNames, "🇳🇱 荷兰", countryList, conntryProxies)
-		countryList, conntryProxies = GetCountryProxies("", "CN,HK,TW,US,CA,JP,SG,AU,CH,DE,GB,NL,FR,RU", proxyNames, "其他国家", countryList, conntryProxies)
+		for country, proxyName := range countMap {
+			conntryProxyTemp := "    type: url-test\n    url: 'http://www.gstatic.com/generate_204'\n    interval: 3600"
+			countryList += "      - " + country + "\n"
+			conntryProxies += "  - name: " + country + "\n" + conntryProxyTemp + "\n    proxies: [" + strings.Join(proxyName, ", ") + "]\n"
+		}
+		if len(allProxies) == 0 { //如果没有proxy，添加无效的NULL节点，防止Clash对空节点的Provider报错
+			resultBuilder.WriteString("- {\"name\":\"NULL\",\"server\":\"NULL\",\"port\":11708,\"type\":\"ssr\",\"country\":\"NULL\",\"password\":\"sEscPBiAD9K$\\u0026@79\",\"cipher\":\"aes-256-cfb\",\"protocol\":\"origin\",\"protocol_param\":\"NULL\",\"obfs\":\"http_simple\"}")
+		}
 
-		body := strings.Replace(string(content), "{{ proxies }}", proxyList, -1)
-		body = strings.Replace(body, "{{ ProxyNames }}", proxyNames, -1)
+		body := strings.Replace(string(content), "{{ proxies }}", resultBuilder.String(), -1)
+		body = strings.Replace(body, "{{ ProxyNames }}", strings.Join(nameList, ", "), -1)
 		body = strings.Replace(body, "{{ CountryList }}", countryList, -1)
 		body = strings.Replace(body, "{{ ConntryProxies }}", conntryProxies, -1)
 
@@ -172,15 +166,27 @@ func setupRouter() {
 	})
 
 	router.GET("/clash/config2", func(c *gin.Context) {
-		content, err := ioutil.ReadFile("template/clash-config2.yaml")
+		content, err := ioutil.ReadFile("resource/template/clash-config-andy.yaml")
 		if err != nil {
 			log.Println("无法读取文件:", err)
 		}
 
-		proxyList, proxyNames := GetAllProxiesText()
+		nameList := []string{}
+		var resultBuilder strings.Builder
+		resultBuilder.WriteString("proxies:\n")
+		allProxies := appcache.GetProxies("proxies")
+		for _, p := range allProxies {			
+			if checkClashSupport(p) {
+				nameList = append(nameList, p.BaseInfo().Name)
+				resultBuilder.WriteString("    " + p.ToClash() + "\n")
+			}
+		}
+		if len(allProxies) == 0 {
+			resultBuilder.WriteString("- {\"name\":\"NULL\",\"server\":\"NULL\",\"port\":11708,\"type\":\"ssr\",\"country\":\"NULL\",\"password\":\"sEscPBiAD9K$\\u0026@79\",\"cipher\":\"aes-256-cfb\",\"protocol\":\"origin\",\"protocol_param\":\"NULL\",\"obfs\":\"http_simple\"}")
+		}
 
-		body := strings.Replace(string(content), "{{ Proxies }}", proxyList, -1)
-		body = strings.Replace(body, "{{ ProxyNames }}", proxyNames, -1)
+		body := strings.Replace(string(content), "{{ Proxies }}", resultBuilder.String(), -1)
+		body = strings.Replace(body, "{{ ProxyNames }}", strings.Join(nameList, ", "), -1)
 
 		c.String(200, body)
 	})

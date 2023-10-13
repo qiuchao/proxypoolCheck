@@ -87,7 +87,7 @@ func getAllProxies() (proxy.ProxyList, error) {
 				name = "unknown"
 			}
 			newName := name + strconv.Itoa(c + 1)
-			log.Printf("[Andy] Change proxy name form %s to %s", name, newName)
+			// log.Printf("[Andy] Change proxy name form %s to %s", name, newName)
 			name = newName
 		}
 		p.SetName(name)
