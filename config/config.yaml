@@ -3,17 +3,14 @@ server_url:
   - http://192.168.254.128:80/clash/proxies
 
 clash_config_url:
-  - https://st-sub.fly.dev/v2b/ant/api/v1/client/subscribe?token=89aa9f3fe67af1a6d52f1bdd245764d5&flag=clash
-  - C:\Users\Windows10\.config\clash\profiles\1696516857345.yml
-  # - C:\Users\Windows10\.config\clash\profiles\test.yml
+  # - C:\Users\Windows10\.config\clash\profiles\1696516857345.yml
 
 request: http                   # 要显示到网页的协议 http / https
 domain: 127.0.0.1               # 要显示到网页的域名 default: 127.0.0.1
-port: 83                        # 要显示到网页上的端口 default: 80
+port: 81                        # 要显示到网页上的端口 default: 80
 
-cron_interval: 30               # 工作间隔 default: 15  minutes
-filter_times: 2                 # 过滤次数 default: 1
-filter_min_proxy: 5             # 过滤到最少节点数量 default: 5
+cron_interval: 30000               # 工作间隔 default: 60  minutes
+min_proxy_count:                # default 15
 
 healthcheck_timeout: 4          # 单个节点健康检测时间限制，单位为秒。超过此时间限制的节点为无效节点 default 5
 healthcheck_connection: 20      # 节点健康检测并发连接数。丢失大量可用节点时可大幅减少此项数值。 default 100
@@ -26,3 +23,7 @@ speed_sort: 1                   # 测速结果排序（0-节点名 1-带宽 2-�
 speed_server:                   # 测速地址 default https://speed.cloudflare.com/__down?bytes=%d
 speed_min_bandwidth:            # 测速过滤最低带宽(B/s) default 1024
 speed_max_ttfb:                 # 测速过滤最大延时(ms) default 4096
+
+sleep_start: 23
+sleep_end: 7
+finish_cmd: 

@@ -23,13 +23,19 @@ import (
 	"strings"
 	"github.com/oschwald/geoip2-golang"
 	"os"
+	"os/exec"
+	"runtime"
 )
 
 var location, _ = time.LoadLocation("PRC")
 
 // Get all usable proxies from proxypool server and set app vars
 func InitApp() error{
-	log.Printf("[Andy] InitApp")
+	if cache.AllProxiesCount > 0 && IsSleepTime() {
+		return nil
+	}
+
+	log.Printf("[Andy] Start running proxypool check...")
 	// Get proxies from server
 	proxies, err := getAllProxies()
 	if err != nil {
@@ -37,9 +43,13 @@ func InitApp() error{
 		cache.LastCrawlTime = fmt.Sprint(time.Now().In(location).Format("2006-01-02 15:04:05"), err)
 		return err
 	}
+	for _, p := range cache.GetProxies("proxies") {
+		proxies = append(proxies, p)
+	}
 	log.Println("[Andy] Origin proxies:", len(proxies))
 	proxies = proxies.Derive().Deduplication()
-	log.Println("[Andy] unique proxies:", len(proxies))
+	allProxiesCount := len(proxies)
+	log.Println("[Andy] Unique proxies:", len(proxies))
 
 	// healthcheck settings
 	healthcheck.DelayConn = config.Config.HealthCheckConnection
@@ -47,7 +57,6 @@ func InitApp() error{
 	healthcheck.SpeedConn = config.Config.SpeedConnection
 	healthcheck.SpeedTimeout = time.Duration(config.Config.SpeedTimeout) * time.Second
 
-	cache.AllProxiesCount = len(proxies)
 	testResults := make([]Result, 0, len(proxies))
 
 	log.Printf("[Andy] Start filter proxies, count: %d", len(proxies))
@@ -58,33 +67,61 @@ func InitApp() error{
 		proxies = healthcheck.SpeedTestAll(proxies)
 		log.Println("[Andy] After speed test, usable proxy count: ", len(proxies))
 		proxies, testResults = ThirdpartSpeedTest(proxies)
-		log.Println("[Andy] After third part speed test, usable proxy count: : ", len(proxies))
+		log.Println("[Andy] After third part speed test, usable proxy count: ", len(proxies))
 	}
 
-	UpdateProxyBaseInfo(proxies, testResults)
+	if len(proxies) > config.Config.MinProxyCount {
+		UpdateProxyBaseInfo(proxies, testResults)
 
-	// set cache variables
-	cache.SSProxiesCount = proxies.TypeLen("ss")
-	cache.SSRProxiesCount = proxies.TypeLen("ssr")
-	cache.VmessProxiesCount = proxies.TypeLen("vmess")
-	cache.TrojanProxiesCount = proxies.TypeLen("trojan")
-	cache.UsableProxiesCount = len(proxies)
-	cache.LastCrawlTime = fmt.Sprint(time.Now().In(location).Format("2006-01-02 15:04:05"))
-	cache.SetProxies("proxies", proxies)
+		cache.AllProxiesCount = allProxiesCount
+		cache.SSProxiesCount = proxies.TypeLen("ss")
+		cache.SSRProxiesCount = proxies.TypeLen("ssr")
+		cache.VmessProxiesCount = proxies.TypeLen("vmess")
+		cache.TrojanProxiesCount = proxies.TypeLen("trojan")
+		cache.UsableProxiesCount = len(proxies)
+		cache.LastCrawlTime = fmt.Sprint(time.Now().In(location).Format("2006-01-02 15:04:05"))
+		cache.SetProxies("proxies", proxies)
 
-	cache.SetString("clashproxies", provider.Clash{
-		provider.Base{
-			Proxies: &proxies,
-		},
-	}.Provide())
-	cache.SetString("surgeproxies", provider.Surge{
-		provider.Base{
-			Proxies: &proxies,
-		},
-	}.Provide())
+		cache.SetString("clashproxies", provider.Clash{
+			provider.Base{
+				Proxies: &proxies,
+			},
+		}.Provide())
+		cache.SetString("surgeproxies", provider.Surge{
+			provider.Base{
+				Proxies: &proxies,
+			},
+		}.Provide())
+	} else {
+		log.Printf("[Andy] Skip this test, result count %d less than %d", len(proxies), config.Config.MinProxyCount)
+	}
 
 	fmt.Println("Open", config.Config.Domain+":"+config.Config.Port, "to check.")
+
+	ExecFinishCmd()
+
 	return nil
+}
+
+func IsSleepTime() bool {
+	sleepStart := config.Config.SleepStart
+	sleepEnd := config.Config.SleepEnd
+	if sleepStart != sleepEnd {
+		currentTime := time.Now()
+		hour := currentTime.Hour()
+		if sleepStart < sleepEnd {
+			if hour >= sleepStart && hour < sleepEnd {
+				log.Printf("[Andy] Skip this execution, sleep time form %d to %d, now: %d", sleepStart, sleepEnd, hour)
+				return true
+			}
+		} else {
+			if (hour >= sleepStart && hour <= 23) || (hour >= 0 && hour < sleepEnd) {
+				log.Printf("[Andy] Skip this execution, sleep time form %d to %d, now: %d", sleepStart, sleepEnd, hour)
+				return true
+			}
+		}
+	}
+	return false
 }
 
 type CountryEmoji struct {
@@ -159,6 +196,30 @@ func UpdateProxyBaseInfo(proxylist proxy.ProxyList, testResults []Result) {
 			}
 		}
 		// log.Printf("[Andy] Rename proxy: %s to: %s", originName, p.BaseInfo().Name)
+	}
+}
+
+func ExecFinishCmd() {
+	finishCmd := config.Config.FinishCmd
+	if finishCmd != "" {
+		if runtime.GOOS == "windows" {
+			cmd := exec.Command("cmd", finishCmd)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				fmt.Printf("[Andy] Execute command(%s) error: %s", cmd, err)
+			} else {					
+				fmt.Printf("[Andy] Execute command(%s) finish. result:\n%s", cmd, string(output))
+			}
+		} else if runtime.GOOS == "linux" {
+			// cmd := exec.Command(finishCmd)
+			cmd := exec.Command("sh", finishCmd)
+			output, err := cmd.Output()
+			if err != nil {
+				fmt.Printf("[Andy] Execute command(%s) error: %s", cmd, err)
+			} else {					
+				fmt.Printf("[Andy] Execute command(%s) finish. result:\n%s", cmd, string(output))
+			}
+		}
 	}
 }
 

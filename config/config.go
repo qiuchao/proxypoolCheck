@@ -19,6 +19,7 @@ type ConfigOptions struct {
 	Port               string   `json:"port" yaml:"port"`
 	Request            string   `json:"request" yaml:"request"`
 	CronInterval       uint64   `json:"cron_interval" yaml:"cron_interval"`
+	MinProxyCount      int      `json:"min_proxy_count" yaml:"min_proxy_count"`
 	HealthCheckTimeout int      `json:"healthcheck_timeout" yaml:"healthcheck_timeout"`
 	HealthCheckConnection int 	`json:"healthcheck_connection" yaml:"healthcheck_connection"`
 	SpeedTest          bool     `json:"speedtest" yaml:"speedtest"`
@@ -29,6 +30,9 @@ type ConfigOptions struct {
 	SpeedServer        string   `json:"speed_server" yaml:"speed_server"`
 	SpeedMinBandwidth  float64  `json:"speed_min_bandwidth" yaml:"speed_min_bandwidth"`
 	SpeedMaxTtfb       float64  `json:"speed_max_ttfb" yaml:"speed_max_ttfb"`
+	SleepStart         int      `json:"sleep_start" yaml:"sleep_start"`
+	SleepEnd           int      `json:"sleep_end" yaml:"sleep_end"`
+	FinishCmd          string   `json:"finish_cmd" yaml:"finish_cmd"`
 }
 
 var Config ConfigOptions
@@ -65,6 +69,9 @@ func Parse(path string) error {
 	if Config.Request == ""{
 		Config.Request = "http"
 	}
+	if Config.MinProxyCount == 0{
+		Config.MinProxyCount = 15
+	}
 	if Config.HealthCheckTimeout == 0{
 		Config.HealthCheckTimeout = 5
 	}
@@ -92,6 +99,12 @@ func Parse(path string) error {
 	if Config.SpeedMaxTtfb == 0 {
 		Config.SpeedMaxTtfb = 4096
 	}
+	if Config.SleepStart == 0{
+		Config.SleepStart = 0
+	}
+	if Config.SleepEnd == 0{
+		Config.SleepEnd = 0
+	}
 	return nil
 }
 
@@ -101,7 +114,7 @@ func ReadFile(path string) ([]byte, error) {
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
 		resp, err := tool.GetHttpClient().Get(path)
 		if err != nil {
-			return nil, errors.New("config file http get fail")
+			return nil, err
 		}
 		defer resp.Body.Close()
 		return ioutil.ReadAll(resp.Body)
