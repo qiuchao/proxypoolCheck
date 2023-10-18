@@ -70,31 +70,27 @@ func InitApp() error{
 		log.Println("[Andy] After third part speed test, usable proxy count: ", len(proxies))
 	}
 
-	if len(proxies) > config.Config.MinProxyCount {
-		UpdateProxyBaseInfo(proxies, testResults)
+	UpdateProxyBaseInfo(proxies, testResults)
 
-		cache.AllProxiesCount = allProxiesCount
-		cache.SSProxiesCount = proxies.TypeLen("ss")
-		cache.SSRProxiesCount = proxies.TypeLen("ssr")
-		cache.VmessProxiesCount = proxies.TypeLen("vmess")
-		cache.TrojanProxiesCount = proxies.TypeLen("trojan")
-		cache.UsableProxiesCount = len(proxies)
-		cache.LastCrawlTime = fmt.Sprint(time.Now().In(location).Format("2006-01-02 15:04:05"))
-		cache.SetProxies("proxies", proxies)
+	cache.AllProxiesCount = allProxiesCount
+	cache.SSProxiesCount = proxies.TypeLen("ss")
+	cache.SSRProxiesCount = proxies.TypeLen("ssr")
+	cache.VmessProxiesCount = proxies.TypeLen("vmess")
+	cache.TrojanProxiesCount = proxies.TypeLen("trojan")
+	cache.UsableProxiesCount = len(proxies)
+	cache.LastCrawlTime = fmt.Sprint(time.Now().In(location).Format("2006-01-02 15:04:05"))
+	cache.SetProxies("proxies", proxies)
 
-		cache.SetString("clashproxies", provider.Clash{
-			provider.Base{
-				Proxies: &proxies,
-			},
-		}.Provide())
-		cache.SetString("surgeproxies", provider.Surge{
-			provider.Base{
-				Proxies: &proxies,
-			},
-		}.Provide())
-	} else {
-		log.Printf("[Andy] Skip this test, result count %d less than %d", len(proxies), config.Config.MinProxyCount)
-	}
+	cache.SetString("clashproxies", provider.Clash{
+		provider.Base{
+			Proxies: &proxies,
+		},
+	}.Provide())
+	cache.SetString("surgeproxies", provider.Surge{
+		provider.Base{
+			Proxies: &proxies,
+		},
+	}.Provide())
 
 	fmt.Println("Open", config.Config.Domain+":"+config.Config.Port, "to check.")
 

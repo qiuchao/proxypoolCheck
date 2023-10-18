@@ -10,7 +10,6 @@ domain: 127.0.0.1               # 要显示到网页的域名 default: 127.0.0.1
 port: 81                        # 要显示到网页上的端口 default: 80
 
 cron_interval: 30000               # 工作间隔 default: 60  minutes
-min_proxy_count:                # default 15
 
 healthcheck_timeout: 4          # 单个节点健康检测时间限制，单位为秒。超过此时间限制的节点为无效节点 default 5
 healthcheck_connection: 20      # 节点健康检测并发连接数。丢失大量可用节点时可大幅减少此项数值。 default 100
