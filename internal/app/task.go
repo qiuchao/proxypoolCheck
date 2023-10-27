@@ -2,11 +2,11 @@ package app
 
 import (
 	"fmt"
-	"github.com/ssrlive/proxypool/pkg/healthcheck"
-	"github.com/ssrlive/proxypool/pkg/provider"
-	"github.com/ssrlive/proxypool/pkg/proxy"
-	"github.com/ssrlive/proxypoolCheck/config"
-	"github.com/ssrlive/proxypoolCheck/internal/cache"
+	"github.com/qiuchao/proxypool/pkg/healthcheck"
+	"github.com/qiuchao/proxypool/pkg/provider"
+	"github.com/qiuchao/proxypool/pkg/proxy"
+	"github.com/qiuchao/proxypoolCheck/config"
+	"github.com/qiuchao/proxypoolCheck/internal/cache"
 	"log"
 	"time"
 	"sync"

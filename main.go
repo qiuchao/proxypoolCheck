@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
-	"github.com/ssrlive/proxypoolCheck/api"
-	"github.com/ssrlive/proxypoolCheck/config"
-	"github.com/ssrlive/proxypoolCheck/internal/app"
-	"github.com/ssrlive/proxypoolCheck/internal/cron"
+	"github.com/qiuchao/proxypoolCheck/api"
+	"github.com/qiuchao/proxypoolCheck/config"
+	"github.com/qiuchao/proxypoolCheck/internal/app"
+	"github.com/qiuchao/proxypoolCheck/internal/cron"
 	"log"
 	"net/http"
 )

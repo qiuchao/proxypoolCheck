@@ -9,15 +9,15 @@ import (
 	"time"
 	"io/ioutil"
 
-	"github.com/ssrlive/proxypool/pkg/provider"
-	"github.com/ssrlive/proxypoolCheck/config"
-	"github.com/ssrlive/proxypoolCheck/internal/app"
-	appcache "github.com/ssrlive/proxypoolCheck/internal/cache"
+	"github.com/qiuchao/proxypool/pkg/provider"
+	"github.com/qiuchao/proxypoolCheck/config"
+	"github.com/qiuchao/proxypoolCheck/internal/app"
+	appcache "github.com/qiuchao/proxypoolCheck/internal/cache"
 	"github.com/gin-contrib/cache"
 	"github.com/gin-contrib/cache/persistence"
 	"github.com/gin-gonic/gin"
-	"github.com/ssrlive/proxypool/pkg/tool"
-	"github.com/ssrlive/proxypool/pkg/proxy"
+	"github.com/qiuchao/proxypool/pkg/tool"
+	"github.com/qiuchao/proxypool/pkg/proxy"
 )
 
 const version = "v0.7.3"

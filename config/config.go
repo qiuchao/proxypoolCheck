@@ -2,7 +2,7 @@ package config
 
 import (
 	"errors"
-	"github.com/ssrlive/proxypool/pkg/tool"
+	"github.com/qiuchao/proxypool/pkg/tool"
 	"github.com/ghodss/yaml"
 	"io/ioutil"
 	"os"
