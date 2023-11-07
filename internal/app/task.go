@@ -66,10 +66,15 @@ func InitApp() error{
 	if config.Config.SpeedTest == true {
 		proxies = healthcheck.SpeedTestAll(proxies)
 		log.Println("[Andy] After speed test, usable proxy count: ", len(proxies))
+	}
+	if config.Config.ThirdpartSpeedtest == true {
 		proxies, testResults = ThirdpartSpeedTest(proxies)
 		log.Println("[Andy] After third part speed test, usable proxy count: ", len(proxies))
 	}
 
+	if len(proxies) > config.Config.MaxProxyCount {
+		proxies = proxies[:config.Config.MaxProxyCount]
+	}
 	UpdateProxyBaseInfo(proxies, testResults)
 
 	cache.AllProxiesCount = allProxiesCount
@@ -187,11 +192,15 @@ func UpdateProxyBaseInfo(proxylist proxy.ProxyList, testResults []Result) {
 		p.AddToName(fmt.Sprintf("_%.02d", countMap[countryName]))
 		for _, result := range testResults {
 			if result.Name == originName {
-				p.AddToName(fmt.Sprintf("|%s", strings.ReplaceAll(formatBandwidth(result.Bandwidth), "/s", "")))
+				if config.Config.SpeedSort == 2 {
+					p.AddToName(fmt.Sprintf("|%s", formatMilliseconds(result.TTFB)))
+				} else {
+					p.AddToName(fmt.Sprintf("|%s", strings.ReplaceAll(formatBandwidth(result.Bandwidth), "/s", "")))
+				}
 				break
 			}
 		}
-		// log.Printf("[Andy] Rename proxy: %s to: %s", originName, p.BaseInfo().Name)
+		log.Printf("[Andy] Rename proxy: %s\tto: %s", originName, p.BaseInfo().Name)
 	}
 }
 

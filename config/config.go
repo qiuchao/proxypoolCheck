@@ -2,11 +2,15 @@ package config
 
 import (
 	"errors"
-	"github.com/qiuchao/proxypool/pkg/tool"
 	"github.com/ghodss/yaml"
 	"io/ioutil"
 	"os"
 	"strings"
+	"net/http"
+	"time"
+	"crypto/tls"
+	"net/url"
+	"log"
 )
 
 var configFilePath = "config.yaml"
@@ -19,9 +23,12 @@ type ConfigOptions struct {
 	Port               string   `json:"port" yaml:"port"`
 	Request            string   `json:"request" yaml:"request"`
 	CronInterval       uint64   `json:"cron_interval" yaml:"cron_interval"`
+	ProxyUrl           string    `json:"proxy_url" yaml:"proxy_url"`
+	MaxProxyCount      int      `json:"max_proxy_count" yaml:"max_proxy_count"`
 	HealthCheckTimeout int      `json:"healthcheck_timeout" yaml:"healthcheck_timeout"`
 	HealthCheckConnection int 	`json:"healthcheck_connection" yaml:"healthcheck_connection"`
 	SpeedTest          bool     `json:"speedtest" yaml:"speedtest"`
+	ThirdpartSpeedtest bool     `json:"thirdpart_speedtest" yaml:"thirdpart_speedtest"`
 	SpeedConnection    int      `json:"speed_connection" yaml:"speed_connection"`
 	SpeedTimeout       int      `json:"speed_timeout" yaml:"speed_timeout"`
 	SpeedDownloadSize  int      `json:"speed_download_size" yaml:"speed_download_size"`
@@ -64,6 +71,9 @@ func Parse(path string) error {
 	}
 	if Config.CronInterval == 0{
 		Config.CronInterval = 60
+	}
+	if Config.MaxProxyCount == 0{
+		Config.MaxProxyCount = 50
 	}
 	if Config.Request == ""{
 		Config.Request = "http"
@@ -108,12 +118,40 @@ func Parse(path string) error {
 // 从本地文件或者http链接读取配置文件内容
 func ReadFile(path string) ([]byte, error) {
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
-		resp, err := tool.GetHttpClient().Get(path)
+		var proxy func(*http.Request) (*url.URL, error)
+		if Config.ProxyUrl != "" {
+			proxyUrl, err := url.Parse(Config.ProxyUrl)
+			if err != nil {
+				log.Printf("[Andy] Proxy url(%s) error, %s", Config.ProxyUrl, err)
+			} else {
+				proxy = http.ProxyURL(proxyUrl)
+			}
+		}
+
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
+		if proxy != nil {
+			tr.Proxy = proxy
+		}
+
+		client := &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: tr,
+		}
+
+		resp, err := client.Get(path)
 		if err != nil {
 			return nil, err
 		}
 		defer resp.Body.Close()
-		return ioutil.ReadAll(resp.Body)
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		return body, nil
 	} else {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			return nil, err

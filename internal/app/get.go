@@ -1,17 +1,13 @@
 package app
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"github.com/qiuchao/proxypool/pkg/proxy"
 	"github.com/qiuchao/proxypoolCheck/config"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"strings"
-	"time"
 	"strconv"
 )
 
@@ -19,7 +15,7 @@ func getAllProxies() (proxy.ProxyList, error) {
 	var proxylist proxy.ProxyList
 	var errs []error // collect errors
 	log.Printf("[Andy] Get all proxies")
-
+	
 	for _, url := range config.Config.ClashConfigUrl {
 		proxyList, err := getClashConfigProxies(url)
 
@@ -116,24 +112,11 @@ type ClashConfig struct {
 
 // get proxy strings from url
 func getProxies(url string) ([]string, error) {
-	//resp, err := http.Get(url)
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	}
-
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: tr,
-	}
-	resp, err := client.Get(url)
+	fileData, err := config.ReadFile(url)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	proxyJson := strings.Split(string(body), "\n")
+	proxyJson := strings.Split(string(fileData), "\n")
 
 	if len(proxyJson) < 2 {
 		return nil, errors.New("no proxy on " + url)
