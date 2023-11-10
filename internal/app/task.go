@@ -43,11 +43,36 @@ func InitApp() error{
 		cache.LastCrawlTime = fmt.Sprint(time.Now().In(location).Format("2006-01-02 15:04:05"), err)
 		return err
 	}
-	for _, p := range cache.GetProxies("proxies") {
-		proxies = append(proxies, p)
+	badProxies := cache.GetBadProxies()
+	if config.Config.ToBadProxyTimes > 0 {
+		for nodeId, _ := range badProxies {
+			badProxies[nodeId]++
+			if badProxies[nodeId] > (config.Config.SkipBadProxyTimes + config.Config.ToBadProxyTimes + 1) {
+				delete(badProxies, nodeId)
+			}
+		}
 	}
-	log.Println("[Andy] Origin proxies:", len(proxies))
-	proxies = proxies.Derive().Deduplication()
+	lastProxies := cache.GetProxies("proxies")
+	proxylist := make(proxy.ProxyList, 0, len(proxies) + len(lastProxies))
+	for _, p := range lastProxies {
+		proxylist = append(proxylist, p)
+	}
+	for _, p := range proxies {
+		ips, err := net.LookupIP(p.BaseInfo().Server)
+		if err != nil {
+			continue
+		}
+		ip := net.ParseIP(ips[0].String())
+		p.SetIP(ip.String())
+		nodeId := p.Identifier()
+		if badProxies[nodeId] > config.Config.ToBadProxyTimes {
+			// log.Printf("[Andy] Skip proxy by bad proxies, name: %s bad times: %d", p.BaseInfo().Name, badProxies[nodeId] - 1)
+			continue
+		}
+		proxylist = append(proxylist, p)
+	}
+	log.Println("[Andy] Origin proxies:", len(proxylist))
+	proxies = proxylist.Derive().Deduplication()
 	allProxiesCount := len(proxies)
 	log.Println("[Andy] Unique proxies:", len(proxies))
 
@@ -58,9 +83,16 @@ func InitApp() error{
 	healthcheck.SpeedTimeout = time.Duration(config.Config.SpeedTimeout) * time.Second
 
 	testResults := make([]Result, 0, len(proxies))
+	log.Printf("[Andy] Start healthcheck")
 
-	log.Printf("[Andy] Start filter proxies, count: %d", len(proxies))
-
+	if config.Config.ToBadProxyTimes > 0 {
+		for _, p := range proxies {
+			nodeId := p.Identifier()
+			if badProxies[nodeId] <= 0 {
+				badProxies[nodeId] = 1
+			}
+		}
+	}
 	proxies = healthcheck.CleanBadProxiesWithGrpool(proxies)
 	log.Println("[Andy] After healthcheck, usable proxy count: ", len(proxies))
 	if config.Config.SpeedTest == true {
@@ -70,6 +102,16 @@ func InitApp() error{
 	if config.Config.ThirdpartSpeedtest == true {
 		proxies, testResults = ThirdpartSpeedTest(proxies)
 		log.Println("[Andy] After third part speed test, usable proxy count: ", len(proxies))
+	}
+	if config.Config.ToBadProxyTimes > 0 {
+		for _, p := range proxies {
+			nodeId := p.Identifier()
+			badProxies[nodeId] = badProxies[nodeId] - 2
+			if badProxies[nodeId] < 0 {
+				badProxies[nodeId] = 0
+			}
+		}
+		cache.SetBadProxies(badProxies)
 	}
 
 	if len(proxies) > config.Config.MaxProxyCount {
@@ -157,12 +199,7 @@ func UpdateProxyBaseInfo(proxylist proxy.ProxyList, testResults []Result) {
 
 	countMap := make(map[string]int)
 	for _, p := range proxylist {
-		ips, err := net.LookupIP(p.BaseInfo().Server)
-		if err != nil {
-			continue
-		}
-		ip := net.ParseIP(ips[0].String())
-
+		ip := net.ParseIP(p.BaseInfo().Server)
 		record, err := db.City(ip)
 		if err != nil {
 			continue
@@ -179,7 +216,6 @@ func UpdateProxyBaseInfo(proxylist proxy.ProxyList, testResults []Result) {
 		}
 
 		originName := p.BaseInfo().Name
-		p.SetIP(ip.String())
 		p.SetCountry(country)
 		p.SetName(countryIsoCode)
 		p.AddToName(fmt.Sprintf("_%s", countryName))
@@ -200,7 +236,7 @@ func UpdateProxyBaseInfo(proxylist proxy.ProxyList, testResults []Result) {
 				break
 			}
 		}
-		log.Printf("[Andy] Rename proxy: %s\tto: %s", originName, p.BaseInfo().Name)
+		// log.Printf("[Andy] Rename proxy: %s\tto: %s", originName, p.BaseInfo().Name)
 	}
 }
 

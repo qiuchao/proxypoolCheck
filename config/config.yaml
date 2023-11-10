@@ -28,3 +28,6 @@ speed_max_ttfb:                 # 测速过滤最大延时(ms) default 4096
 sleep_start: 23
 sleep_end: 7
 finish_cmd: 
+
+to_bad_proxy_times: 1           # default: 3
+skip_bad_proxy_times: 2         # default: 5

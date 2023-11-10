@@ -39,6 +39,8 @@ type ConfigOptions struct {
 	SleepStart         int      `json:"sleep_start" yaml:"sleep_start"`
 	SleepEnd           int      `json:"sleep_end" yaml:"sleep_end"`
 	FinishCmd          string   `json:"finish_cmd" yaml:"finish_cmd"`
+	ToBadProxyTimes    int      `json:"to_bad_proxy_times" yaml:"to_bad_proxy_times"`
+	SkipBadProxyTimes  int      `json:"skip_bad_proxy_times" yaml:"skip_bad_proxy_times"`
 }
 
 var Config ConfigOptions
@@ -110,6 +112,12 @@ func Parse(path string) error {
 	}
 	if Config.SleepEnd == 0{
 		Config.SleepEnd = 0
+	}
+	if Config.ToBadProxyTimes == 0{
+		Config.ToBadProxyTimes = 3
+	}
+	if Config.SkipBadProxyTimes == 0{
+		Config.SkipBadProxyTimes = 5
 	}
 	return nil
 }

@@ -27,6 +27,18 @@ func SetString(key, value string) {
 	Cache.Set(key, value, cache.NoExpiration)
 }
 
+func SetBadProxies(badProxies map[string]int) {
+	Cache.Set("badProxies", badProxies, cache.NoExpiration)
+}
+
+func GetBadProxies() map[string]int {
+	result, found := Cache.Get("badProxies")
+	if found {
+		return result.(map[string]int)
+	}
+	return make(map[string]int)
+}
+
 // Get string from cache
 func GetString(key string) string {
 	result, found := Cache.Get(key)
